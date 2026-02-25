@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../providers/download_provider.dart';
 
 class DownloadOptionsDialog extends StatefulWidget {
