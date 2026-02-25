@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -98,7 +99,12 @@ class DownloadProvider extends ChangeNotifier {
       );
 
       if (response.statusCode != 200) {
-        throw Exception('فشل في جلب معلومات الفيديو');
+        try {
+          final data = jsonDecode(response.body);
+          throw Exception(data['error'] ?? 'فشل في جلب معلومات الفيديو');
+        } catch (e) {
+          throw Exception('فشل في جلب معلومات الفيديو');
+        }
       }
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -165,6 +171,85 @@ class DownloadProvider extends ChangeNotifier {
     } catch (_) {}
   }
 
+  Future<void> _pollProgress(
+    String downloadId, {
+    int retryCount = 0,
+    int delaySeconds = 1,
+    DateTime? startTime,
+  }) async {
+    startTime ??= DateTime.now();
+
+    // التحقق من المهلة الزمنية (مثلاً 15 دقيقة كحد أقصى)
+    if (DateTime.now().difference(startTime).inMinutes > 15) {
+      downloading = false;
+      error = 'انتهت المهلة الزمنية للتحميل';
+      notifyListeners();
+      return;
+    }
+
+    if (!downloading) return;
+
+    try {
+      final response = await http
+          .get(Uri.parse('$baseUrl/api/progress/$downloadId'))
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        progress = (data['progress'] ?? 0).toDouble() / 100.0;
+
+        if (data['status'] == 'finished') {
+          downloading = false;
+          progress = 1.0;
+          notifyListeners();
+          await Future.delayed(const Duration(milliseconds: 500));
+          progress = 0;
+          await refreshFiles();
+          notifyListeners();
+          return;
+        } else if (data['status'] == 'error') {
+          downloading = false;
+          error = data['error'] ?? 'حدث خطأ أثناء التحميل';
+          notifyListeners();
+          return;
+        }
+
+        notifyListeners();
+        // نجاح الطلب، العودة لانتظار ثانية واحدة للمرة القادمة
+        await Future.delayed(const Duration(seconds: 1));
+        _pollProgress(downloadId, startTime: startTime);
+      } else {
+        // خطأ من الخادم (مثلاً 500 أو 404)
+        if (retryCount > 10) {
+          downloading = false;
+          error = 'فشل الاتصال بالخادم بعد عدة محاولات';
+          notifyListeners();
+          return;
+        }
+        // التراجع الأسي (Exponential Backoff)
+        int nextDelay = (delaySeconds * 2).clamp(1, 30);
+        await Future.delayed(Duration(seconds: nextDelay));
+        _pollProgress(downloadId,
+            retryCount: retryCount + 1,
+            delaySeconds: nextDelay,
+            startTime: startTime);
+      }
+    } catch (e) {
+      if (retryCount > 10) {
+        downloading = false;
+        error = 'خطأ في الشبكة: $e';
+        notifyListeners();
+        return;
+      }
+      int nextDelay = (delaySeconds * 2).clamp(1, 30);
+      await Future.delayed(Duration(seconds: nextDelay));
+      _pollProgress(downloadId,
+          retryCount: retryCount + 1,
+          delaySeconds: nextDelay,
+          startTime: startTime);
+    }
+  }
+
   Future<void> downloadVideo({
     required String url,
     required String qualityOrItag,
@@ -186,15 +271,22 @@ class DownloadProvider extends ChangeNotifier {
       );
 
       if (response.statusCode != 200) {
-        throw Exception('فشل تحميل الفيديو');
+        final data = jsonDecode(response.body);
+        throw Exception(data['error'] ?? 'فشل تحميل الفيديو');
       }
 
-      await refreshFiles();
+      final data = jsonDecode(response.body);
+      final downloadId = data['downloadId'];
+      if (downloadId != null) {
+        _pollProgress(downloadId);
+      } else {
+        downloading = false;
+        await refreshFiles();
+        notifyListeners();
+      }
     } catch (e) {
       error = e.toString();
-    } finally {
       downloading = false;
-      progress = 0;
       notifyListeners();
     }
   }
@@ -216,15 +308,22 @@ class DownloadProvider extends ChangeNotifier {
       );
 
       if (response.statusCode != 200) {
-        throw Exception('فشل تحميل الصوت');
+        final data = jsonDecode(response.body);
+        throw Exception(data['error'] ?? 'فشل تحميل الصوت');
       }
 
-      await refreshFiles();
+      final data = jsonDecode(response.body);
+      final downloadId = data['downloadId'];
+      if (downloadId != null) {
+        _pollProgress(downloadId);
+      } else {
+        downloading = false;
+        await refreshFiles();
+        notifyListeners();
+      }
     } catch (e) {
       error = e.toString();
-    } finally {
       downloading = false;
-      progress = 0;
       notifyListeners();
     }
   }
@@ -237,8 +336,19 @@ class DownloadProvider extends ChangeNotifier {
       if (response.statusCode == 200) {
         files.removeWhere((f) => f.name == file.name && f.type == file.type);
         notifyListeners();
+      } else {
+        try {
+          final data = jsonDecode(response.body);
+          error = data['error'] ?? 'فشل في حذف الملف';
+        } catch (_) {
+          error = 'فشل في حذف الملف';
+        }
+        notifyListeners();
       }
-    } catch (_) {}
+    } catch (e) {
+      error = 'خطأ في الاتصال: $e';
+      notifyListeners();
+    }
   }
 
   Future<void> shareFile(DownloadedFile file) async {

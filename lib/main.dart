@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'providers/download_provider.dart';
 import 'providers/settings_provider.dart';
@@ -23,6 +24,15 @@ class MyApp extends StatelessWidget {
           return MaterialApp(
             title: 'تحميل الفيديوهات',
             debugShowCheckedModeBanner: false,
+            locale: const Locale('ar'),
+            supportedLocales: const [
+              Locale('ar'),
+            ],
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
             theme: ThemeData(
               primarySwatch: Colors.blue,
               useMaterial3: true,
@@ -34,7 +44,7 @@ class MyApp extends StatelessWidget {
                 centerTitle: true,
                 elevation: 0,
               ),
-              cardTheme: CardTheme(
+              cardTheme: CardThemeData(
                 elevation: 4,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -61,7 +71,7 @@ class MyApp extends StatelessWidget {
                 centerTitle: true,
                 elevation: 0,
               ),
-              cardTheme: CardTheme(
+              cardTheme: CardThemeData(
                 elevation: 4,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),

@@ -30,13 +30,13 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
       final provider = context.read<DownloadProvider>();
       final fileUrl = '${provider.baseUrl}${widget.file.urlPath}';
 
-      if (widget.file.type == 'video') {
-        _videoController = VideoPlayerController.networkUrl(Uri.parse(fileUrl));
-        await _videoController!.initialize();
+      _videoController = VideoPlayerController.networkUrl(Uri.parse(fileUrl));
+      await _videoController!.initialize();
 
+      if (widget.file.type == 'video') {
         _chewieController = ChewieController(
           videoPlayerController: _videoController!,
-          autoPlay: false,
+          autoPlay: true,
           looping: false,
           aspectRatio: _videoController!.value.aspectRatio,
           allowFullScreen: true,
@@ -49,17 +49,29 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
             bufferedColor: Colors.grey.shade300,
           ),
         );
+      } else {
+        // For audio, we start playing automatically
+        _videoController!.play();
+        _videoController!.addListener(_onAudioControllerUpdate);
+      }
 
-        if (mounted) {
-          setState(() {
-            _isInitialized = true;
-          });
-        }
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
       }
     } catch (e) {
-      setState(() {
-        _error = 'فشل في تحميل الملف: $e';
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'فشل في تحميل الملف: $e';
+        });
+      }
+    }
+  }
+
+  void _onAudioControllerUpdate() {
+    if (mounted) {
+      setState(() {});
     }
   }
 
@@ -178,58 +190,165 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   }
 
   Widget _buildAudioPlayer(ThemeData theme) {
+    if (_videoController == null) return const SizedBox();
+
+    final position = _videoController!.value.position;
+    final duration = _videoController!.value.duration;
+    final isPlaying = _videoController!.value.isPlaying;
+
     return Container(
       padding: const EdgeInsets.all(24),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 200,
-            height: 200,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [
-                  theme.colorScheme.primary,
-                  theme.colorScheme.secondary,
-                ],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: theme.colorScheme.primary.withOpacity(0.5),
-                  blurRadius: 30,
-                  spreadRadius: 10,
+          // Audio Art
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: isPlaying ? 1.0 : 0.0),
+            duration: const Duration(milliseconds: 500),
+            builder: (context, value, child) {
+              return Container(
+                width: 200 + (value * 20),
+                height: 200 + (value * 20),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      theme.colorScheme.primary,
+                      theme.colorScheme.secondary,
+                    ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: theme.colorScheme.primary.withOpacity(0.3 + (value * 0.2)),
+                      blurRadius: 30 + (value * 10),
+                      spreadRadius: 10 + (value * 5),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: const Icon(
-              Icons.music_note_rounded,
-              size: 100,
-              color: Colors.white,
-            ),
+                child: Icon(
+                  isPlaying ? Icons.music_note_rounded : Icons.pause_rounded,
+                  size: 100,
+                  color: Colors.white,
+                ),
+              );
+            },
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 48),
+
+          // File Name
           Text(
             widget.file.name,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 20,
+              fontSize: 22,
               fontWeight: FontWeight.bold,
             ),
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 24),
-          const Text(
-            'مشغل الصوت قيد التطوير',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 16,
-            ),
+          const SizedBox(height: 32),
+
+          // Progress Slider
+          Column(
+            children: [
+              SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  trackHeight: 4,
+                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+                ),
+                child: Slider(
+                  value: position.inMilliseconds.toDouble(),
+                  max: duration.inMilliseconds.toDouble(),
+                  onChanged: (value) {
+                    _videoController!.seekTo(Duration(milliseconds: value.toInt()));
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _formatDuration(position),
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                    Text(
+                      _formatDuration(duration),
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
+
+          // Controls
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.replay_10_rounded, color: Colors.white, size: 32),
+                onPressed: () {
+                  final newPos = position - const Duration(seconds: 10);
+                  _videoController!.seekTo(newPos < Duration.zero ? Duration.zero : newPos);
+                },
+              ),
+              const SizedBox(width: 24),
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    color: theme.colorScheme.primary,
+                    size: 40,
+                  ),
+                  onPressed: () {
+                    if (isPlaying) {
+                      _videoController!.pause();
+                    } else {
+                      _videoController!.play();
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 24),
+              IconButton(
+                icon: const Icon(Icons.forward_10_rounded, color: Colors.white, size: 32),
+                onPressed: () {
+                  final newPos = position + const Duration(seconds: 10);
+                  _videoController!.seekTo(newPos > duration ? duration : newPos);
+                },
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
+    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
+    if (duration.inHours > 0) {
+      return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
+    }
+    return "$twoDigitMinutes:$twoDigitSeconds";
   }
 }

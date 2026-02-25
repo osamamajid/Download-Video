@@ -30,32 +30,32 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String _detectPlatform(String url) {
     if (url.contains('youtube.com') || url.contains('youtu.be')) {
-      return 'YouTube';
+      return 'يوتيوب';
     } else if (url.contains('facebook.com') || url.contains('fb.com') || url.contains('fb.watch')) {
-      return 'Facebook';
+      return 'فيسبوك';
     } else if (url.contains('twitter.com') || url.contains('x.com')) {
-      return 'Twitter/X';
+      return 'تويتر/X';
     } else if (url.contains('instagram.com')) {
-      return 'Instagram';
+      return 'إنستغرام';
     } else if (url.contains('tiktok.com')) {
-      return 'TikTok';
+      return 'تيك توك';
     } else if (url.contains('linkedin.com')) {
-      return 'LinkedIn';
+      return 'لينكد إن';
     }
     return 'منصة أخرى';
   }
 
   IconData _getPlatformIcon(String platform) {
     switch (platform) {
-      case 'YouTube':
+      case 'يوتيوب':
         return Icons.play_circle_filled;
-      case 'Facebook':
+      case 'فيسبوك':
         return Icons.facebook;
-      case 'Twitter/X':
+      case 'تويتر/X':
         return Icons.alternate_email;
-      case 'Instagram':
+      case 'إنستغرام':
         return Icons.camera_alt;
-      case 'TikTok':
+      case 'تيك توك':
         return Icons.music_video;
       default:
         return Icons.video_library;
@@ -64,15 +64,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Color _getPlatformColor(String platform) {
     switch (platform) {
-      case 'YouTube':
+      case 'يوتيوب':
         return Colors.red;
-      case 'Facebook':
+      case 'فيسبوك':
         return Colors.blue.shade700;
-      case 'Twitter/X':
+      case 'تويتر/X':
         return Colors.black;
-      case 'Instagram':
+      case 'إنستغرام':
         return Colors.purple;
-      case 'TikTok':
+      case 'تيك توك':
         return Colors.black;
       default:
         return Colors.grey;
@@ -82,16 +82,16 @@ class _HomeScreenState extends State<HomeScreen> {
   void _handleQuickPlatform(String platform) {
     String url = '';
     switch (platform) {
-      case 'YouTube':
+      case 'يوتيوب':
         url = 'https://www.youtube.com/';
         break;
-      case 'Instagram':
+      case 'إنستغرام':
         url = 'https://www.instagram.com/';
         break;
-      case 'TikTok':
+      case 'تيك توك':
         url = 'https://www.tiktok.com/';
         break;
-      case 'Facebook':
+      case 'فيسبوك':
         url = 'https://www.facebook.com/';
         break;
     }
@@ -244,25 +244,25 @@ class _HomeScreenState extends State<HomeScreen> {
                                 children: [
                                   _buildPlatformButton(
                                     context,
-                                    'YouTube',
+                                    'يوتيوب',
                                     Icons.play_circle_filled,
                                     Colors.red,
                                   ),
                                   _buildPlatformButton(
                                     context,
-                                    'Instagram',
+                                    'إنستغرام',
                                     Icons.camera_alt,
                                     Colors.purple,
                                   ),
                                   _buildPlatformButton(
                                     context,
-                                    'TikTok',
+                                    'تيك توك',
                                     Icons.music_video,
                                     Colors.black,
                                   ),
                                   _buildPlatformButton(
                                     context,
-                                    'Facebook',
+                                    'فيسبوك',
                                     Icons.facebook,
                                     Colors.blue.shade700,
                                   ),
@@ -511,6 +511,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   progressColor: theme.colorScheme.primary,
                                   barRadius: const Radius.circular(4),
                                   animation: true,
+                                  isRTL: true,
                                 ),
                               ],
                             ),
